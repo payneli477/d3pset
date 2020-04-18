@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>D3 PSET</title>
+    <script src="https://d3js.org/d3.v5.min.js" charset="utf-8"></script>
+    <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+    <script src="https://d3js.org/topojson.v2.min.js"></script>
+		
+		<link href="https://fonts.googleapis.com/css?family=Open+Sans:300" rel="stylesheet"> 
+		<style type="text/css">
+        .caption{
+        fill: black;
+        font-size:14px;
+        }
+        #tooltip {
+            font-family: "Proxima Nova", "Montserrat", sans-serif;
+            font-size:12px;
+            text-align: center;
+             position: absolute;
+             width: 80px;
+             height: 30px;
+             padding: 5px;
+             opacity: .6;
+             background-color: white;
+             border: solid gray 1px;
+             z-index:10;
+         }
+         #tooltip.hidden {
+            display: none;
+            }
+
+		</style>
+		</head>
+		<body>
+	
+		
+		<div id="main">
+        	<div id="tooltip" class="hidden">
+                <p><span id="value"> </span></p>
+            </div>
+		</div>
+		<script type="text/javascript">
+			var width = 1200;
+			var height = 800;
+		
+			var bos_map = 'https://gist.githubusercontent.com/cesandoval/09b2e39263c748fbcb84b927cecc7c46/raw/ab71d3638efd2545ec99c2651c6f2ddcea9d2a07/boston.json'
+			var bos_csv = 'https://raw.githubusercontent.com/brookefzy/BigData2020/master/pset6/boston_311.csv'
+            
+            var svg = d3.select("div#main")
+                        .append("svg")
+                        .attr("width", width)
+                        .attr("height", height)
+
+            var twitter_map = d3.map()
+            var x = d3.scaleLinear().domain([0,6]).range([100,400])
+            var color = d3.scaleQuantize().domain([0,6]).range(d3.schemePurples[9])
+
+            var albersProjection = d3.geoAlbers()
+                .scale(300000)
+                .rotate([71.057, 0])
+                .center([0, 42.313])
+                .translate([width/2, height/2])
+
+            var path = d3.geoPath()
+                .projection(albersProjection)
+            
+            var promises = [d3.json(bos_map), d3.csv(bos_csv, function(d){twitter_map.set(d.id, +d.twitter)})]
+            
+            var map = Promise.all(promises).then(ready)
+            
+            function ready([d]){
+                console.log(d)
+                //console.log(twitter_map)
+                svg.append("g").attr ( "transform" , "translate(0,70)" ).selectAll("path")
+                   .data(topojson.feature(d, d.objects.boston_neigh).features)
+                   .enter()
+            		.append("path")
+            		.attr("fill", function(d) { 
+            		var color_rate = Math.log(1+twitter_map.get(d.properties.OBJECTID))
+            		return color(color_rate)})
+            		.style("stroke", "white")
+            		.attr("d", path)
+            		.on("mouseover", function(d){
+                		d3.select("#tooltip")
+                		.style("left", d3.event.pageX + "px")
+                        .style("top", d3.event.pageY + "px")
+                        .select("#value")
+                        .html("<p>" + String(d.properties.Name) +"</p>")
+                        d3.select("#tooltip").classed("hidden", false);
+                    })
+            		.on("mouseout", function(d){d3.select("#tooltip").classed("hidden", true);})
+            }
+            
+            var g = svg.append("g").attr ( "class" , "key" ). attr ( "transform" , "translate(0,70)" );
+            
+             g.append("text")
+                .attr("class", "caption")
+                .attr("x", x.range()[0])
+                .attr("y", -10)
+                .attr("text-anchor", "start")
+                .text("twitters per neighborhood (log scale)")
+                
+            g.selectAll("rect")
+                .data(color.range().map(d=>color.invertExtent(d)))
+                .enter().append("rect")
+                . attr ( "height" , 12 )
+                . attr ( "x" , d=>x(d[0]))
+                . attr ( "width" , function ( d ) { return x ( d [ 1 ]) - x ( d [ 0 ]); })
+                . attr ( "fill" , function ( d ) { return color ( d [ 0 ]); })
+            
+            
+            g.call(d3.axisBottom(x)
+                .tickSize(13)
+                .tickFormat(function(d,i){return i*6})
+                .tickValues(color.domain()))
+                .select(".domain")
+                .remove()
+            
+
+            
+
+		
+		</script>
+		</div>
+	</body>
+</html>
+
